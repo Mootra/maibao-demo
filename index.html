@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'">
+<title>麦鲍 · 交互演示</title>
+<style>
+  :root { --page: #ECEEF1; --ink: #1E2430; --muted: #6B7280; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Yu Gothic UI", "Noto Sans CJK SC", "Noto Sans JP", sans-serif;
+  }
+  button, textarea { font: inherit; color: inherit; }
+  button { min-height: 44px; }
+  button:focus-visible, textarea:focus-visible { outline: 3px solid #BA800E; outline-offset: 2px; }
+  .page-head { max-width: 1000px; margin: 20px auto 4px; padding: 0 16px; }
+  .page-head h1 { font-size: 20px; margin: 0 0 4px; }
+  .page-head p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; font-size: 14px; }
+  .seg { display: inline-flex; border: 1px solid #C9CED6; border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; background: #fff; padding: 6px 12px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+  .btn { border: 1px solid #C9CED6; background: #fff; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .stage { display: flex; flex-wrap: wrap; justify-content: center; gap: 28px; padding: 14px 16px; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 0; max-width: 100%; }
+  .col h2 { font-size: 15px; margin: 0; }
+  .col > ul { margin: 0; padding-left: 18px; width: 360px; max-width: 100%; font-size: 13px; color: #4B5563; line-height: 1.6; }
+  .phone {
+    width: 360px; max-width: 100%; height: 740px; border-radius: 28px; overflow: hidden; position: relative;
+    display: flex; flex-direction: column;
+    box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 8px 24px rgba(0,0,0,.10);
+  }
+  .icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  .chat { background: var(--bg); color: var(--text); }
+  .chat[data-char="zhiyao"] { --bg: #F4F5F7; --surface: #FFFFFF; --text: #1E2430; --muted: #6B7280; --accent: #2E4A7D; --accent-soft: #E6ECF6; --hl: #E3A82B; --hl-soft: #FCF1D3; }
+  .chat[data-char="jiangyu"] { --bg: #F2F6F7; --surface: #FFFFFF; --text: #16252A; --muted: #5F7178; --accent: #1F7A8C; --accent-soft: #DDEFF2; --hl: #E9793C; --hl-soft: #FDE7DA; }
+  .chat .hdr { display: flex; align-items: center; gap: 10px; padding: 16px 14px 10px; background: var(--surface); border-bottom: 1px solid rgba(0,0,0,.06); }
+  .chat .av { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--hl)); color: #fff; display: grid; place-items: center; font-weight: 600; flex: none; }
+  .chat .av.sm { width: 28px; height: 28px; font-size: 12px; }
+  .chat .nm { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .chat .badge { font-size: 10px; font-weight: 700; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 0 4px; line-height: 14px; }
+  .chat .status { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .chat .settings { margin-left: auto; width: 44px; flex: none; display: grid; place-items: center; background: none; border: 0; border-radius: 12px; cursor: pointer; }
+  .chat .settings .icon { width: 22px; height: 22px; }
+  .chat .msgs { flex: 1; min-height: 0; overflow: auto; padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .chat .divider { align-self: center; font-size: 12px; color: var(--muted); margin: 6px 0 4px; }
+  .chat .row { display: flex; gap: 8px; align-items: flex-end; align-self: flex-start; max-width: 88%; }
+  .chat .slot { width: 28px; flex: none; }
+  .chat .bubble { background: var(--surface); border-radius: 16px; padding: 8px 12px; font-size: 15px; line-height: 1.5; box-shadow: 0 1px 1px rgba(0,0,0,.05); overflow-wrap: anywhere; }
+  .chat .row.first .bubble { border-top-left-radius: 6px; }
+  .chat .me { align-self: flex-end; max-width: 80%; background: var(--accent-soft); border-radius: 16px 16px 6px 16px; padding: 8px 12px; font-size: 15px; line-height: 1.5; margin-top: 6px; }
+  .chat .fb { align-self: flex-end; font-size: 12px; color: var(--accent); background: none; border: 0; cursor: pointer; padding: 2px 4px; }
+  .chat .fbcard, .chat .card { background: var(--surface); border: 1px solid rgba(0,0,0,.08); border-radius: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.55; }
+  .chat .fbcard { align-self: flex-end; max-width: 88%; }
+  .chat .fbcard .k { color: var(--muted); font-size: 12px; margin-right: 6px; }
+  .chat del { color: #B4483A; }
+  .chat ins { text-decoration: none; background: var(--hl-soft); border-radius: 3px; padding: 0 2px; }
+  .chat .why { color: var(--muted); margin-top: 4px; }
+  .chat .acts { display: flex; gap: 8px; margin-top: 8px; }
+  .chat .mini { border: 1px solid var(--accent); color: var(--accent); background: var(--surface); border-radius: 12px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+  .chat .mini.done { border-color: transparent; color: var(--muted); cursor: default; }
+  .chat .recast { align-self: flex-start; margin: 6px 0 0 36px; font-size: 13px; color: var(--accent); background: var(--accent-soft); border-radius: 10px; padding: 6px 10px; }
+  .chat .mem { align-self: stretch; display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12px; color: var(--muted); background: rgba(0,0,0,.045); border-radius: 12px; padding: 4px 10px; margin: 4px 0; }
+  .chat .mem button { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0 0 0 6px; }
+  .chat .typing { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); align-self: flex-start; margin-top: 4px; }
+  .chat .dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); display: inline-block; margin-right: 3px; animation: blink 1.2s infinite; }
+  .chat .dots span:nth-child(2) { animation-delay: .2s; }
+  .chat .dots span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .chat .dots span { animation: none; opacity: .6; } }
+  .chat .word { text-decoration: underline; text-decoration-color: var(--hl); text-decoration-thickness: 2px; text-underline-offset: 3px; cursor: pointer; background: none; border: 0; padding: 0; min-height: 0; }
+  .chat .card { margin: 8px 2px 2px; align-self: stretch; }
+  .chat .card h3 { font-size: 14px; margin: 0 0 4px; }
+  .chat .card p { margin: 0; color: var(--muted); }
+  .chat .card ul { margin: 6px 0 0; padding: 0; list-style: none; }
+  .chat .card li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-top: 1px solid rgba(0,0,0,.06); }
+  .chat .card li > span { flex: 1; min-width: 0; }
+  .chat .card li b, .chat .card li small { display: block; }
+  .chat .card li small { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .chat .card li .mini { flex: none; }
+  .chat .card .acts { justify-content: flex-end; }
+  .chat .chips { display: flex; gap: 6px; padding: 6px 12px 0; overflow-x: auto; }
+  .chat .chip { border: 1px solid rgba(0,0,0,.12); background: var(--surface); border-radius: 999px; padding: 6px 10px; font-size: 12px; white-space: nowrap; cursor: pointer; }
+  .chat .chip.hl { border-color: var(--hl); }
+  .chat .composer { display: flex; gap: 8px; padding: 8px 12px; align-items: center; }
+  .chat .round { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+  .chat .mic { background: var(--surface); border: 1px solid rgba(0,0,0,.1); color: var(--muted); }
+  .chat .send { background: var(--accent); color: #fff; border: 0; }
+  .chat .input { flex: 1; min-width: 0; height: 42px; border-radius: 21px; background: var(--surface); border: 1px solid rgba(0,0,0,.1); padding: 0 14px; font: inherit; font-size: 14px; color: var(--text); }
+  .chat .tabs { display: flex; background: var(--surface); border-top: 1px solid rgba(0,0,0,.06); padding: 6px 4px 12px; }
+  .chat .tabs div { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--muted); }
+  .chat .tabs div.on { color: var(--accent); font-weight: 600; }
+  .chat .sheet { position: absolute; left: 12px; right: 12px; bottom: 128px; max-height: calc(100% - 148px); overflow-y: auto; background: var(--surface); border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.18); padding: 10px; z-index: 2; }
+  .chat .sheet[hidden] { display: none; }
+  .chat .sheet .head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); padding: 2px 4px 6px; }
+  .chat .sheet .head button { border: 0; background: none; color: var(--accent); cursor: pointer; }
+  .chat .sheet .opt { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 10px; font-size: 14px; border-radius: 10px; cursor: pointer; }
+  .chat .sheet .opt:hover { background: var(--accent-soft); }
+  .chat .sheet .opt[aria-pressed="true"] { background: var(--accent-soft); }
+  .chat .sheet .option-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .chat .sheet .option-row > span:last-child { color: var(--muted); font-size: 13px; }
+  .chat .sheet .hint { color: var(--muted); font-size: 12px; margin: 8px 10px; line-height: 1.6; }
+  .chat .sheet label { display: block; margin: 12px 10px 6px; font-size: 14px; }
+  .chat .sheet textarea { display: block; width: calc(100% - 20px); margin: 0 10px; resize: vertical; min-height: 100px; border: 1px solid #B8C1CB; border-radius: 8px; padding: 10px; font-size: 14px; line-height: 1.6; background: var(--surface); }
+  .chat .sheet .acts { justify-content: flex-end; flex-wrap: wrap; padding: 0 10px; }
+  .chat .sheet small { display: block; color: var(--muted); font-size: 12px; }
+  .chat .wc .term { font-size: 20px; font-weight: 600; }
+  .chat .wc .read { color: var(--muted); margin-left: 6px; }
+  .chat .wc .ex { margin-top: 8px; font-size: 14px; }
+  .chat .wc .ex small { display: inline; margin-left: 6px; }
+  .notes { max-width: 1000px; margin: 0 auto 32px; padding: 0 16px; font-size: 13px; color: #4B5563; line-height: 1.7; }
+  .notes code { overflow-wrap: anywhere; }
+  @media(max-width:760px) { .col:nth-child(2) { order: -1; } }
+  @media(max-width:420px) { .stage { padding: 14px 12px; } .phone { width: calc(100vw - 24px); border-radius: 20px; } }
+</style>
+</head>
+<body>
+<header class="page-head">
+  <h1>麦鲍 · 交互演示</h1>
+  <p>固定对话样例，不连接模型。人设保存在此浏览器；收藏仅在本次演示中生效。</p>
+  <div class="controls">
+    <span>角色</span>
+    <span class="seg" id="charSeg">
+      <button type="button" data-v="zhiyao">沈知遥</button>
+      <button type="button" data-v="jiangyu">江屿</button>
+    </span>
+    <span>学习模式</span>
+    <span class="seg" id="modeSeg">
+      <button type="button" data-v="companion">陪伴</button>
+      <button type="button" data-v="coach">教练</button>
+    </span>
+    <button type="button" class="btn" id="replay">重播</button>
+    <button type="button" class="btn" id="showAll">直接看全部</button>
+  </div>
+</header>
+
+<main class="stage">
+  <section class="col">
+    <div class="phone chat" id="chat" data-char="jiangyu">
+      <div class="hdr">
+        <div class="av" id="chatAv">江</div>
+        <div>
+          <div class="nm"><span id="chatName">江屿</span><span class="badge" title="由 AI 扮演的角色">AI</span></div>
+          <div class="status" id="chatStatus"></div>
+        </div>
+        <button type="button" class="settings" id="chatSettings" aria-label="聊天设置" aria-controls="sheet" aria-haspopup="dialog" aria-expanded="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l1 3 3 1 1 5-3 2v3l-5 2-3-2H6l-2-5 2-3V7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+      <div class="msgs" id="chatMsgs" role="log" aria-live="polite"></div>
+      <div class="sheet" id="sheet" role="dialog" aria-labelledby="sheetTitle" hidden>
+        <div class="head"><span id="sheetTitle"></span><button type="button" id="sheetClose">关闭</button></div>
+        <div id="sheetBody"></div>
+      </div>
+      <div class="chips">
+        <button type="button" class="chip" id="chipHint">回复提示</button>
+        <button type="button" class="chip hl" id="chipWord"></button>
+      </div>
+      <div class="composer">
+        <div class="round mic" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg></div>
+        <input class="input" id="chatInput" placeholder="说点什么" aria-label="消息">
+        <button type="button" class="round send" aria-label="发送"><svg class="icon" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+      </div>
+      <div class="tabs">
+        <div class="on">聊天</div><div>学习</div><div>我的</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+
+<script>
+(() => {
+  'use strict';
+
+  const W = (text) => ({ w: true, text });
+
+  const CHARS = {
+    zhiyao: {
+      name: '沈知遥', initial: '知', status: '在旧书店二楼改稿',
+      en: {
+        divider: '周四 23:40',
+        steps: [
+          { t: 'char', lines: ["You're up late.", 'Did you finish the interview questions?'] },
+          { t: 'user', text: 'Not yet. I very tired today.', fb: {
+            from: ['I very tired today.'], to: ['I', { ins: "'m" }, ' very tired today.'],
+            why: 'tired 是形容词，前面需要 be 动词；口语里说 I’m。', recast: "I'm very tired today." } },
+          { t: 'char', lines: ['Then stop for tonight.', ["I've been ", W('stuck'), ' on one sentence for four hours. So I get it.']] },
+          { t: 'user', text: 'What sentence?' },
+          { t: 'char', lines: ['A pun in a Japanese mystery novel. It only works in Japanese.', 'I might add a footnote and go to sleep.'] },
+          { t: 'user', text: 'My sister drinks mint tea every night. She says it helps her sleep.' },
+          { t: 'mem', text: '记下了：你妹妹每晚喝薄荷茶' },
+          { t: 'char', lines: ['Mint at night? Braver than me.', 'Tea keeps me up. Mine just goes cold on the desk.'] },
+          { t: 'user', text: 'Good night, Zhiyao.' },
+          { t: 'char', lines: ['Good night.', 'Tell me how the questions go.'] },
+        ],
+        word: { term: 'stuck', read: '/stʌk/', meaning: '（做某事）卡住；没有进展',
+          mine: "I've been stuck on one pun all week.", mineZh: '这个双关我卡了一整周。',
+          dict: 'The car got stuck in the snow.', dictZh: '车陷在雪里了。' },
+        hints: [['Not yet, but soon.', '还没，快了。'], ['Can you help me with one?', '能帮我看一个吗？'], ["I'll try tomorrow.", '我明天试试。']],
+        ending: { type: 'recap', items: [{ from: 'I very tired today.', to: "I'm very tired today." }, { word: 'stuck', meaning: '（做某事）卡住；没有进展' }] },
+      },
+      ja: {
+        divider: '周四 23:40',
+        steps: [
+          { t: 'char', lines: ['まだ起きてたんだ。', '面接の質問、終わった？'] },
+          { t: 'user', text: 'まだです。今日はとても疲れたでした。', fb: {
+            from: ['まだです。今日はとても', { del: '疲れたでした' }, '。'], to: ['まだです。今日はとても', { ins: '疲れました' }, '。'],
+            why: '「疲れた」已经是过去式，后面不再接「でした」；礼貌的说法是「疲れました」。', recast: '今日はとても疲れました。' } },
+          { t: 'char', lines: [['じゃあ、今日はもう', W('休もう'), '。'], '私も一つの文に四時間かかった。わかるよ。'] },
+          { t: 'user', text: 'どんな文ですか。' },
+          { t: 'char', lines: ['日本語のミステリーに出てくる、だじゃれ。', '日本語でしか通じないの。注をつけて寝ようかな。'] },
+          { t: 'user', text: '妹は毎晩ミントティーを飲みます。' },
+          { t: 'mem', text: '记下了：你妹妹每晚喝薄荷茶' },
+          { t: 'char', lines: ['夜にミント？強いね。', '私はお茶を淹れても、机の上で冷めちゃう。'] },
+          { t: 'user', text: 'おやすみなさい。' },
+          { t: 'char', lines: ['おやすみ。', '面接の話、また聞かせて。'] },
+        ],
+        word: { term: '休む', read: 'やすむ', meaning: '休息；请假',
+          mine: '今日はもう休もう。続きは明日。', mineZh: '今天先休息吧，明天再接着来。',
+          dict: '少し休みましょう。', dictZh: '稍微休息一下吧。' },
+        hints: [['まだですが、もうすぐです。', '还没，快了。'], ['一つ手伝ってくれますか。', '能帮我看一个吗？'], ['明日やってみます。', '我明天试试。']],
+        ending: { type: 'recap', items: [{ from: '疲れたでした', to: '疲れました' }, { word: '休む', meaning: '休息' }] },
+      },
+    },
+    jiangyu: {
+      name: '江屿', initial: '江', status: '在镰仓等日落',
+      en: {
+        divider: '周六 17:20',
+        steps: [
+          { t: 'char', lines: ['Hey.', "I'm on the beach waiting for the sunset. The rain finally stopped."] },
+          { t: 'user', text: 'I walked by the river today.' },
+          { t: 'char', lines: ['Nice. What time?'] },
+          { t: 'user', text: 'Around four. The light was so beautiful.' },
+          { t: 'char', lines: ['Four is good light.', ['I always overexpose water at that hour. Everything ', W('turns'), ' white.']] },
+          { t: 'user', text: 'I am not good at taking photos.' },
+          { t: 'char', lines: ["Doesn't matter.", 'Take thirty. One of them will be good.'] },
+          { t: 'user', text: 'I will go to river again tomorrow.', fb: {
+            from: [{ del: 'I will' }, ' go to river again tomorrow.'], to: [{ ins: "I'll" }, ' go to ', { ins: 'the ' }, 'river again tomorrow.'],
+            why: '具体的那条河要加 the；口语里 I will 常说成 I’ll。', recast: "I'll go to the river again tomorrow." } },
+          { t: 'mem', text: '记下了：你明天还去河边' },
+          { t: 'char', lines: ['Then send me one tomorrow.'] },
+        ],
+        word: { term: 'turn', read: '/tɜːrn/', meaning: '变成（某种颜色或状态）',
+          mine: 'The sea turns gold around five.', mineZh: '五点左右海面会变成金色。',
+          dict: 'The leaves turn red in autumn.', dictZh: '秋天树叶变红。' },
+        hints: [["Sure, I'll send one.", '好，我发你一张。'], ["Only if it's good.", '拍得好才给你看。'], ["That's embarrassing.", '有点不好意思。']],
+        ending: { type: 'relationship', after: ['Cool.', "Then tomorrow I'll be the one asking how the river was."] },
+      },
+      ja: {
+        divider: '周六 17:20',
+        steps: [
+          { t: 'char', lines: ['お、来た。', '今、海で夕焼け待ってる。やっと雨がやんだ。'] },
+          { t: 'user', text: '今日は川を散歩しました。' },
+          { t: 'char', lines: ['いいね、何時ごろ？'] },
+          { t: 'user', text: '四時ごろです。光がとてもきれいでした。' },
+          { t: 'char', lines: ['四時なら、いい光だ。', ['俺、あの時間の水面は', W('いつも'), '白く飛ばしちゃう。']] },
+          { t: 'user', text: 'わたしは写真がへたです。' },
+          { t: 'char', lines: ['へたでいいよ。', '三十枚撮れば、一枚はいいのがある。'] },
+          { t: 'user', text: '明日、また川に行くます。', fb: {
+            from: ['明日、また川に', { del: '行く' }, 'ます。'], to: ['明日、また川に', { ins: '行き' }, 'ます。'],
+            why: '「ます」前面接动词的ます形：行く → 行きます。', recast: '明日、また川に行きます。' } },
+          { t: 'mem', text: '记下了：你明天还去河边' },
+          { t: 'char', lines: ['じゃあ明日、一枚見せて。'] },
+        ],
+        word: { term: 'いつも', read: 'itsumo', meaning: '总是；平时',
+          mine: 'いつも夕焼けに間に合わない。', mineZh: '总是赶不上日落。',
+          dict: 'いつも七時に起きます。', dictZh: '我总是七点起床。' },
+        hints: [['いいですよ。', '好啊。'], ['うまく撮れたら見せます。', '拍得好再给你看。'], ['はずかしいです。', '有点不好意思。']],
+        ending: { type: 'relationship', after: ['よし。', '明日は俺から聞くよ。川どうだった？って。'] },
+      },
+    },
+  };
+
+  const LANGUAGES = [
+    { code: 'en', label: '英语', native: 'English' },
+    { code: 'ja', label: '日语', native: '日本語' },
+    { code: 'ko', label: '韩语', native: '한국어' },
+    { code: 'fr', label: '法语', native: 'Français' },
+    { code: 'de', label: '德语', native: 'Deutsch' },
+    { code: 'es', label: '西班牙语', native: 'Español' },
+    { code: 'it', label: '意大利语', native: 'Italiano' },
+    { code: 'pt', label: '葡萄牙语', native: 'Português' },
+  ];
+  // Authored navigation samples only. These are not model outputs or language-quality evidence.
+  const EXTRA_SAMPLES = {
+    ko: {
+      user: '오늘은 좀 피곤해요.', followup: '하던 일은 잘돼요?',
+      zhiyao: { lines: ['그럼 오늘은 여기까지 해요.', '저도 번역이 막혀서 잠깐 쉬고 있어요.'], reply: '말장난 하나가 잘 안 옮겨져요. 조금 쉬었다가 다시 볼래요.', word: ['말장난', 'maljangnan', '文字游戏；双关语', '이 말장난은 번역하기 어려워요.', '这个双关很难翻译。'] },
+      jiangyu: { lines: ['오늘은 푹 쉬어요.', '나도 사진 고르다가 잠깐 쉬는 중이에요.'], reply: '비 때문에 바닷가 촬영이 미뤄졌어요. 찍어 둔 사진부터 고르고 있어요.', word: ['사진', 'sajin', '照片', '마음에 드는 사진을 한 장 골랐어요.', '我选了一张喜欢的照片。'] },
+    },
+    fr: {
+      user: "J'ai eu une longue journée.", followup: 'Tu avances dans ton travail ?',
+      zhiyao: { lines: ['On peut laisser le travail pour demain.', "Je fais une pause aussi. Mon brouillon peut attendre."], reply: "Un jeu de mots me résiste encore. Je le relirai à tête reposée.", word: ['brouillon', '/bʁujɔ̃/', '草稿', "Je relirai mon brouillon demain.", '我明天再读一遍草稿。'] },
+      jiangyu: { lines: ['Pose-toi un peu.', 'Je laisse mes photos de côté aussi.'], reply: "La pluie a retardé les prises de vue. Je trie les photos que j'ai déjà.", word: ['photo', '/foto/', '照片', "Je garde cette photo malgré le flou.", '虽然有点模糊，我还是留着这张照片。'] },
+    },
+    de: {
+      user: 'Heute war ein langer Tag.', followup: 'Wie läuft deine Arbeit?',
+      zhiyao: { lines: ['Dann lass den Rest bis morgen liegen.', 'Ich lege meinen Entwurf auch kurz zur Seite.'], reply: 'Ein Wortspiel lässt sich nicht gut übersetzen. Nach einer Pause sehe ich vielleicht mehr.', word: ['Entwurf', '', '草稿', 'Ich lese den Entwurf morgen noch einmal.', '我明天再读一遍草稿。'] },
+      jiangyu: { lines: ['Dann erst mal Pause.', 'Ich lasse meine Fotos auch kurz liegen.'], reply: 'Wegen des Regens musste ich die Aufnahmen am Meer verschieben. Ich sortiere erst mal die vorhandenen Fotos.', word: ['Foto', '', '照片', 'Das Foto ist etwas schief.', '这张照片有点歪。'] },
+    },
+    es: {
+      user: 'Hoy ha sido un día largo.', followup: '¿Cómo va tu trabajo?',
+      zhiyao: { lines: ['Lo demás puede esperar hasta mañana.', 'Yo también voy a dejar el borrador un rato.'], reply: 'Sigo buscando cómo traducir un juego de palabras. Necesito leerlo con la cabeza despejada.', word: ['borrador', '', '草稿', 'Mañana volveré a leer el borrador.', '我明天再读一遍草稿。'] },
+      jiangyu: { lines: ['Pues toca descansar.', 'Yo también dejo las fotos por un rato.'], reply: 'La lluvia retrasó la sesión junto al mar. Estoy eligiendo entre las fotos que ya tengo.', word: ['foto', '', '照片', 'Esta foto salió un poco torcida.', '这张照片拍得有点歪。'] },
+    },
+    it: {
+      user: 'Oggi è stata una giornata lunga.', followup: 'Come va il lavoro?',
+      zhiyao: { lines: ['Il resto può aspettare fino a domani.', "Anch'io metto da parte la bozza per un po'."], reply: "Sto ancora cercando una traduzione per un gioco di parole. Lo rileggerò dopo una pausa.", word: ['bozza', '', '草稿', 'Domani rileggerò la bozza.', '我明天再读一遍草稿。'] },
+      jiangyu: { lines: ['Allora facciamo una pausa.', "Metto da parte le foto anch'io."], reply: 'La pioggia ha rimandato il servizio al mare. Sto scegliendo tra le foto che ho già.', word: ['foto', '', '照片', "Questa foto è un po' storta.", '这张照片有点歪。'] },
+    },
+    pt: {
+      user: 'Hoje foi um dia longo.', followup: 'Como está o trabalho?',
+      zhiyao: { lines: ['O resto pode esperar até amanhã.', 'Também vou deixar o rascunho de lado por um tempo.'], reply: 'Ainda estou procurando uma tradução para um trocadilho. Vou reler depois de uma pausa.', word: ['rascunho', '', '草稿', 'Amanhã vou reler o rascunho.', '我明天再读一遍草稿。'] },
+      jiangyu: { lines: ['Então é hora de descansar.', 'Também vou dar um tempo nas fotos.'], reply: 'A chuva adiou a sessão na praia. Estou escolhendo entre as fotos que já tenho.', word: ['foto', '', '照片', 'Esta foto ficou um pouco torta.', '这张照片有点歪。'] },
+    },
+  };
+  for (const [code, sample] of Object.entries(EXTRA_SAMPLES)) {
+    for (const key of ['zhiyao', 'jiangyu']) {
+      const entry = sample[key];
+      const [term, read, meaning, mine, mineZh] = entry.word;
+      CHARS[key][code] = {
+        divider: '对话样例',
+        steps: [{ t: 'user', text: sample.user }, { t: 'char', lines: entry.lines }, { t: 'user', text: sample.followup }, { t: 'char', lines: [entry.reply] }],
+        word: { term, read, meaning, mine, mineZh }, hints: [[sample.followup, '你的工作怎么样了？']],
+        ending: { type: 'recap', items: [{ word: term, meaning }] },
+      };
+    }
+  }
+  const DEFAULT_PERSONAS = {
+    zhiyao: { persona: '28 岁，文学编辑兼日译中译者。常在旧书店二楼改稿，茶凉了才想起来喝。正在校一部推理小说的译稿，有个双关还没译好。', style: '话不多，偶尔冷幽默。表达具体看法，能接受沉默；用户请求时再解释语言问题。' },
+    jiangyu: { persona: '26 岁，旅行摄影师。常带胶片机，也用手机拍照。给杂志拍的海边稿件因雨推迟，正在挑已有照片。', style: '口语化，常从画面说起，会拿自己的拍摄失误开玩笑。不把每句话变成问题或练习。' },
+  };
+  const editedPersonas = {};
+  try {
+    const saved = JSON.parse(localStorage.getItem('maibao-demo-personas') || '{}');
+    for (const key of ['zhiyao', 'jiangyu']) {
+      if (typeof saved?.[key]?.persona === 'string' && typeof saved[key].style === 'string') {
+        editedPersonas[key] = { persona: saved[key].persona.slice(0, 800), style: saved[key].style.slice(0, 600) };
+      }
+    }
+  } catch {}
+  const savedReviews = new Set();
+  const params = new URLSearchParams(location.search);
+  const state = {
+    char: CHARS[params.get('char')] ? params.get('char') : 'jiangyu',
+    lang: LANGUAGES.some((item) => item.code === params.get('lang')) ? params.get('lang') : 'ja',
+    mode: params.get('mode') === 'coach' ? 'coach' : 'companion',
+  };
+  let runId = 0;
+
+  const $ = (id) => document.getElementById(id);
+  const phone = $('chat');
+  const msgs = $('chatMsgs');
+  const sheet = $('sheet');
+  let sheetTrigger = null;
+
+  function el(tag, cls, text) {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function parts(target, list, onWord) {
+    for (const p of list) {
+      if (typeof p === 'string') target.append(p);
+      else if (p.w) {
+        const b = el('button', 'word', p.text);
+        b.type = 'button';
+        b.addEventListener('click', onWord);
+        target.append(b);
+      } else if (p.del !== undefined) target.append(el('del', '', p.del));
+      else if (p.ins !== undefined) target.append(el('ins', '', p.ins));
+    }
+  }
+
+  const textLength = (line) => (typeof line === 'string' ? line : line.map((p) => (typeof p === 'string' ? p : p.text || '')).join('')).length;
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const scrollEnd = () => { msgs.scrollTop = msgs.scrollHeight; };
+  const script = () => CHARS[state.char][state.lang];
+
+
+  function openSheet(title, body) {
+    if (sheet.hidden) sheetTrigger = document.activeElement;
+    $('sheetTitle').textContent = title;
+    const host = $('sheetBody');
+    host.replaceChildren(body);
+    sheet.hidden = false;
+    $('chatSettings').setAttribute('aria-expanded', 'true');
+    $('sheetClose').focus({ preventScroll: true });
+  }
+  function closeSheet() {
+    if (sheet.hidden) return;
+    sheet.hidden = true;
+    $('chatSettings').setAttribute('aria-expanded', 'false');
+    if (sheetTrigger?.isConnected) sheetTrigger.focus({ preventScroll: true });
+  }
+
+  function saveReviewButton(key) {
+    const button = el('button', 'mini', '加入复习');
+    button.type = 'button';
+    button.dataset.reviewKey = `${state.char}:${state.lang}:${key}`;
+    const update = (node) => {
+      if (!savedReviews.has(node.dataset.reviewKey)) return;
+      node.textContent = '已加入'; node.disabled = true; node.classList.add('done');
+    };
+    update(button);
+    button.addEventListener('click', () => {
+      savedReviews.add(button.dataset.reviewKey);
+      document.querySelectorAll('[data-review-key]').forEach(update);
+    });
+    return button;
+  }
+
+  function chatSettings(message = '') {
+    const box = el('div');
+    if (message) { const status = el('p', 'hint', message); status.setAttribute('role', 'status'); box.append(status); }
+    const language = LANGUAGES.find((item) => item.code === state.lang);
+    const languages = el('button', 'opt option-row');
+    languages.type = 'button'; languages.id = 'chooseLanguage';
+    languages.append(el('span', '', '聊天语言'), el('span', '', language.label + ' ›'));
+    languages.addEventListener('click', languageSettings);
+    const persona = el('button', 'opt option-row');
+    persona.type = 'button'; persona.id = 'editPersona';
+    persona.append(el('span', '', '编辑人设'), el('span', '', CHARS[state.char].name + ' ›'));
+    persona.addEventListener('click', personaSettings);
+    box.append(languages, persona);
+    openSheet('聊天设置', box);
+  }
+
+  function languageSettings() {
+    const list = el('div');
+    list.setAttribute('role', 'group'); list.setAttribute('aria-label', '聊天语言');
+    for (const item of LANGUAGES) {
+      const button = el('button', 'opt option-row');
+      button.type = 'button'; button.dataset.language = item.code;
+      button.setAttribute('aria-pressed', String(item.code === state.lang));
+      button.append(el('span', '', item.label), el('span', '', item.native));
+      button.addEventListener('click', () => {
+        if (state.lang === item.code) { chatSettings(); return; }
+        state.lang = item.code;
+        syncControls(); play(true);
+      });
+      list.append(button);
+    }
+    openSheet('聊天语言', list);
+  }
+
+  function personaSettings() {
+    const key = state.char;
+    const draft = editedPersonas[key] || DEFAULT_PERSONAS[key];
+    const form = el('form');
+    const addField = (id, label, value, maxLength) => {
+      const name = el('label', '', label); name.htmlFor = id;
+      const input = el('textarea'); input.id = id; input.value = value; input.maxLength = maxLength;
+      form.append(name, input); return input;
+    };
+    const persona = addField('personaText', '人设', draft.persona, 800);
+    const style = addField('personaStyle', '说话方式', draft.style, 600);
+    const hint = el('p', 'hint', '仅保存在此浏览器；对话样例不会随编辑重新生成。');
+    hint.setAttribute('role', 'status');
+    const actions = el('div', 'acts');
+    const cancel = el('button', 'mini', '取消'); cancel.type = 'button'; cancel.addEventListener('click', () => chatSettings());
+    const save = el('button', 'mini', '保存'); save.type = 'submit'; save.id = 'savePersona';
+    actions.append(cancel, save); form.append(hint, actions);
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!persona.value.trim()) { hint.textContent = '请填写人设。'; persona.focus(); return; }
+      editedPersonas[key] = { persona: persona.value.trim(), style: style.value.trim() };
+      try {
+        localStorage.setItem('maibao-demo-personas', JSON.stringify(editedPersonas));
+        chatSettings('人设已保存在此浏览器。');
+      } catch { chatSettings('浏览器未允许保存，修改仅在当前页面有效。'); }
+    });
+    openSheet('编辑' + CHARS[key].name + '的人设', form);
+  }
+
+  function wordCard() {
+    const w = script().word;
+    const box = el('div', 'wc');
+    const top = el('div');
+    top.append(el('span', 'term', w.term), el('span', 'read', w.read));
+    const meaning = el('div', '', w.meaning);
+    const mine = el('div', 'ex');
+    mine.append(el('small', '', '例句'), el('div', '', w.mine), el('small', '', w.mineZh));
+    const acts = el('div', 'acts');
+    acts.append(saveReviewButton('word:' + w.term));
+    box.append(top, meaning, mine, acts);
+    return box;
+  }
+
+  function addCharLine(line, first) {
+    const row = el('div', 'row' + (first ? ' first' : ''));
+    const slot = el('div', 'slot');
+    if (first) slot.append(el('div', 'av sm', CHARS[state.char].initial));
+    const bubble = el('div', 'bubble');
+    parts(bubble, typeof line === 'string' ? [line] : line, () => openSheet('单词', wordCard()));
+    row.append(slot, bubble);
+    msgs.append(row);
+  }
+
+  function feedbackCard(fb) {
+    const card = el('div', 'fbcard');
+    const from = el('div');
+    from.append(el('span', 'k', '你写的'));
+    parts(from, fb.from);
+    const to = el('div');
+    to.append(el('span', 'k', '建议'));
+    parts(to, fb.to);
+    const acts = el('div', 'acts');
+    acts.append(saveReviewButton('sentence:' + fb.recast));
+    card.append(from, to, el('div', 'why', fb.why), acts);
+    return card;
+  }
+
+  function addUser(step) {
+    msgs.append(el('div', 'me', step.text));
+    if (!step.fb) return;
+    const toggle = el('button', 'fb', '修改建议');
+    toggle.type = 'button';
+    toggle.setAttribute('aria-expanded', 'false');
+    const card = feedbackCard(step.fb);
+    const open = state.mode === 'coach';
+    card.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.addEventListener('click', () => {
+      card.hidden = !card.hidden;
+      toggle.setAttribute('aria-expanded', String(!card.hidden));
+      scrollEnd();
+    });
+    msgs.append(toggle, card);
+  }
+
+  function addMemory(text) {
+    const row = el('div', 'mem');
+    const label = el('span', '', text);
+    const undo = el('button', '', '撤销');
+    undo.type = 'button';
+    undo.addEventListener('click', () => { label.textContent = '已撤销'; undo.remove(); });
+    row.append(label, undo);
+    msgs.append(row);
+  }
+
+  function showTyping() {
+    const row = el('div', 'typing');
+    row.id = 'typing';
+    const dots = el('span', 'dots');
+    dots.append(el('span'), el('span'), el('span'));
+    row.append(el('div', 'av sm', CHARS[state.char].initial), dots, CHARS[state.char].name + '正在输入');
+    msgs.append(row);
+    scrollEnd();
+  }
+  function hideTyping() { const t = $('typing'); if (t) t.remove(); }
+
+  async function charTurn(lines, id, instant) {
+    let waited = 0;
+    for (let i = 0; i < lines.length; i += 1) {
+      if (!instant) {
+        const ms = i === 0 ? 900 : Math.min(Math.max(textLength(lines[i - 1]) * 40, 600), 2200, Math.max(4000 - waited, 0));
+        showTyping();
+        await wait(ms);
+        if (id !== runId) return false;
+        hideTyping();
+        if (i > 0) waited += ms;
+      }
+      addCharLine(lines[i], i === 0);
+      scrollEnd();
+    }
+    return true;
+  }
+
+  function addEnding(id, instant) {
+    const s = script();
+    if (s.ending.type === 'recap') {
+      const card = el('div', 'card');
+      card.append(el('h3', '', '复习'));
+      const list = el('ul');
+      for (const item of s.ending.items) {
+        const li = el('li');
+        const text = el('span');
+        let action;
+        if (item.word) {
+          text.append(el('b', '', item.word), el('small', '', item.meaning));
+          action = saveReviewButton('word:' + item.word);
+        } else {
+          text.append(el('del', '', item.from), ' → ', el('ins', '', item.to));
+          action = saveReviewButton('sentence:' + item.to);
+        }
+        action.type = 'button';
+        li.append(text, action);
+        list.append(li);
+      }
+      card.append(list);
+      msgs.append(card);
+      scrollEnd();
+      return;
+    }
+    const name = CHARS[state.char].name;
+    const card = el('div', 'card');
+    card.append(el('h3', '', '和' + name + '更近一点？'), el('p', '', '亲近：会主动问你的近况，多讲自己的事。随时可以退回。'));
+    const acts = el('div', 'acts');
+    const yes = el('button', 'mini', '好');
+    const no = el('button', 'mini', '先不');
+    yes.type = 'button';
+    no.type = 'button';
+    acts.append(no, yes);
+    card.append(acts);
+    msgs.append(card);
+    scrollEnd();
+    yes.addEventListener('click', async () => {
+      card.replaceWith(el('div', 'divider', '你们现在是亲近的朋友'));
+      await charTurn(s.ending.after, runId, instant);
+    });
+    no.addEventListener('click', () => {
+      card.replaceWith(el('div', 'mem', '14 天内不再提示，可以在角色页修改'));
+    });
+  }
+
+  async function play(instant) {
+    const id = ++runId;
+    closeSheet();
+    hideTyping();
+    msgs.replaceChildren();
+    const s = script();
+    msgs.append(el('div', 'divider', s.divider));
+    let pendingRecast = null;
+    for (const step of s.steps) {
+      if (id !== runId) return;
+      if (step.t === 'user') {
+        if (!instant) { await wait(700); if (id !== runId) return; }
+        addUser(step);
+        pendingRecast = step.fb ? step.fb.recast : null;
+      } else if (step.t === 'mem') {
+        if (!instant) { await wait(400); if (id !== runId) return; }
+        addMemory(step.text);
+      } else if (step.t === 'char') {
+        if (state.mode === 'coach' && pendingRecast) msgs.append(el('div', 'recast', pendingRecast));
+        pendingRecast = null;
+        const ok = await charTurn(step.lines, id, instant);
+        if (!ok) return;
+      }
+      scrollEnd();
+    }
+    if (id === runId) addEnding(id, instant);
+    if (instant && params.get('at') === 'top') msgs.scrollTop = 0;
+  }
+
+  function syncControls() {
+    const c = CHARS[state.char];
+    phone.dataset.char = state.char;
+    $('chatAv').textContent = c.initial;
+    $('chatName').textContent = c.name;
+    $('chatStatus').textContent = c.status;
+    $('chipWord').textContent = script().word.term;
+    $('chipWord').setAttribute('aria-label', '查看 ' + script().word.term + ' 的释义和例句');
+    for (const [segId, key] of [['charSeg', 'char'], ['modeSeg', 'mode']]) {
+      for (const b of $(segId).querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.v === state[key]));
+    }
+  }
+
+  function bindSeg(segId, key) {
+    $(segId).addEventListener('click', (event) => {
+      const b = event.target.closest('button');
+      if (!b || state[key] === b.dataset.v) return;
+      state[key] = b.dataset.v;
+      syncControls();
+      play(false);
+    });
+  }
+
+  bindSeg('charSeg', 'char');
+  bindSeg('modeSeg', 'mode');
+  $('replay').addEventListener('click', () => play(false));
+  $('showAll').addEventListener('click', () => play(true));
+  $('sheetClose').addEventListener('click', closeSheet);
+  $('chatSettings').addEventListener('click', () => chatSettings());
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeSheet(); });
+  $('chipWord').addEventListener('click', () => openSheet('单词', wordCard()));
+  $('chipHint').addEventListener('click', () => {
+    const list = el('div');
+    for (const [text, zh] of script().hints) {
+      const b = el('button', 'opt', text);
+      b.type = 'button';
+      b.append(el('small', '', zh));
+      b.addEventListener('click', () => { $('chatInput').value = text; closeSheet(); $('chatInput').focus(); });
+      list.append(b);
+    }
+    openSheet('回复提示', list);
+  });
+
+  syncControls();
+  play(params.get('all') === '1');
+})();
+</script>
+</body>
+</html>
